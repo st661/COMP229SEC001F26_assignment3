@@ -1,0 +1,98 @@
+import Users from "../models/users.model.js"
+import extend from "lodash/extend.js"
+import errorHandler from "./error.controller.js"
+
+const create = async (req, res) => {
+    const user = new Users(req.body);
+    try {
+        await user.save();
+        return res.status(200).json({
+            message: "Successfully signed up!",
+        });
+    } catch (err) {
+        return res.status(400).json({
+            error: errorHandler.getErrorMessage(err),
+        });
+    }
+};
+
+const list = async (req, res) => {
+    try {
+        let users = await Users.find().select("name email created updated");
+        res.json(users);
+    } catch (err) {
+        return res.status(400).json({
+            error: errorHandler.getErrorMessage(err),
+        });
+    }
+};
+
+const usersByID = async (req, res, next, id) => {
+    try {
+        let user = await Users.findById(id);
+        if (!user)
+            return res.status(400).json({
+                error: "User not found",
+            });
+        req.profile = user;
+        next();
+    } catch (err) {
+        return res.status(400).json({
+            error: "Could not retrieve user",
+        });
+    }
+};
+
+const read = (req, res) => {
+    req.profile.password = undefined;
+    req.profile.salt = undefined;
+    return res.json(req.profile);
+};
+
+const update = async (req, res) => {
+    try {
+        let user = req.profile;
+        user = extend(user, req.body);
+        user.uddated = Date.now();
+        await user.save();
+        user.password = undefined;
+        user.salt = undefined;
+        res.json(user);
+    } catch (err) {
+        return res.status(400).json({
+            error: errorHandler.getErrorMessage(err),
+        });
+    }
+};
+
+const remove = async (req, res) => {
+    try {
+        let user = req.profile;
+        let deletedUser = await user.deleteOne();
+        deletedUser.password = undefined;
+        deletedUser.salt = undefined;
+        res.json(deletedUser);
+    } catch (err) {
+        return res.status(400).json({
+            error: errorHandler.getErrorMessage(err),
+        });
+    }
+};
+
+const removeAll = async (req, res) => {
+    try {
+        // let user = req.profile;
+        await Users.deleteMany({});
+        // user.password = undefined;
+        // user.salt = undefined;
+        res.status(200).json({
+            message: "All users are deleted."
+        });
+    } catch (err) {
+        return res.status(400).json({
+            error: errorHandler.getErrorMessage(err),
+        });
+    }
+};
+
+export default { create, usersByID, read, list, remove, removeAll, update };
